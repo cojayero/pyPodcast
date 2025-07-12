@@ -1,0 +1,22 @@
+El objetivo es hacer una aplicacion en python3.9 usando PySide para el interfaz grafico.
+La aplicacion tiene como ojectivo generar podcasts a partir de resumenes de texto
+La apliccion permitira indicar varios origenes de datos:
+    - Lista de videos de un canal de youtube. en este caso, el programa leera el rss del canal, para poder generar una lista de podcasts.
+    - busqueda de rss de una web..
+cComportamiento del prograama:
+    en la parte derecha de la pantalla habra una lista de origenes de datos, con un nombre, numero de items y un thumbnail
+    en la parte izquierda estaá la lista de items del orgien de datos y su estad: nuevo, procesado, escuchado o ignorar
+
+para cada nuevo contenido, el programa generara un resumen y usando las capacidades de macoS generará un fichero de audio en formato mp3, que será un podcast.
+Los resumenes se generarán.
+    - para las paginas web : lee la pagina web y el programa lanzara las capacidades de ML de macos para generar un resumen.
+    - para los videos, el programa obendra la transcripcion del contenido y la procsará para generar un resumen en español
+
+Habra una opcion para reproducir los contenidos generados
+se guardar´á en una base de datos sqlite los datos necesarios para el programa.
+se generará un entorno virtual con las librerias necesarias.
+Se generará un ficehro especificacion.md con la specificacion detallada, y su estaado.
+Se generará un fichero csv, con los requisitos caracterizados por tipo de requisito y su estado.
+Se generará un fichero de bugs y su estado que se ira actualizando durante la generacion y preubas del codigo.
+habra un fichero de configuracion, que se excluira del control de configuracion, en la primera ejecucion del programa se creara desde cero si no existe
+utiliza las mejoraes practicas para python 3.9

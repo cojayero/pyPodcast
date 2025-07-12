@@ -1,0 +1,16 @@
+ID,Tipo,Descripción,Prioridad,Estado,Notas
+REQ-001,Funcional,Interfaz gráfica con PySide6,Alta,Completado,GUI con dos paneles implementada
+REQ-002,Funcional,Lectura de RSS de YouTube,Alta,Completado,Integración con feedparser
+REQ-003,Funcional,Lectura de RSS web,Alta,Completado,Soporte para feeds genéricos
+REQ-004,Funcional,Base de datos SQLite,Alta,Completado,Persistencia de datos implementada
+REQ-005,Funcional,Estados de contenido,Media,Completado,nuevo/procesado/escuchado/ignorar
+REQ-006,Funcional,Generación de resúmenes,Alta,Completado,Usando BeautifulSoup para extracción
+REQ-007,Funcional,Síntesis de voz macOS,Alta,Completado,Usando subprocess con 'say'
+REQ-008,Funcional,Transcripción YouTube,Media,Completado,youtube-transcript-api
+REQ-009,Funcional,Reproductor audio,Media,Completado,pygame para reproducción
+REQ-010,No Funcional,Configuración persistente,Media,Completado,config.json generado automáticamente
+REQ-011,No Funcional,Logging del sistema,Baja,Completado,Logs estructurados
+REQ-012,No Funcional,Manejo de errores,Media,Completado,Try-catch en operaciones críticas
+REQ-013,Funcional,Thumbnails de fuentes,Baja,Completado,Descarga y cache de imágenes
+REQ-014,Funcional,Filtrado de contenido,Baja,Pendiente,Búsqueda y filtros avanzados
+REQ-015,No Funcional,Optimización rendimiento,Baja,Pendiente,Threading para operaciones largas

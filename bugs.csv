@@ -1,0 +1,6 @@
+ID,Fecha,Tipo,Descripción,Estado,Prioridad,Notas
+BUG-001,2025-07-12,UI,Layout no responsive en ventanas pequeñas,Abierto,Media,Revisar constraints del layout
+BUG-002,2025-07-12,Audio,Posible delay en síntesis de voz,Abierto,Baja,Optimizar llamadas a 'say'
+BUG-003,2025-07-12,Network,Timeout en feeds RSS lentos,Abierto,Media,Implementar timeout configurable
+BUG-004,2025-07-12,DB,Posibles locks en SQLite concurrente,Abierto,Alta,Implementar connection pooling
+BUG-005,2025-07-12,YouTube,Algunos videos sin transcripción,Abierto,Media,Fallback a whisper local
