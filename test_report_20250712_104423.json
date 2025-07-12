@@ -1,0 +1,35 @@
+{
+  "timestamp": "2025-07-12T10:44:23.648504",
+  "overall_success": true,
+  "success_rate": 100.0,
+  "total_tests": 4,
+  "passed_tests": 4,
+  "failed_tests": 0,
+  "results": {
+    "test_components.py": {
+      "success": true,
+      "extracted": {
+        "tests_passed": "6",
+        "total_tests": "6"
+      }
+    },
+    "test_youtube_improved.py": {
+      "success": true,
+      "extracted": {
+        "success_rate": "100.0",
+        "successful_urls": "9"
+      }
+    },
+    "test_youtube_extensive.py": {
+      "success": true,
+      "extracted": {
+        "success_rate": "100.0",
+        "successful_urls": "22"
+      }
+    },
+    "demo_youtube_fixes.py": {
+      "success": true,
+      "extracted": {}
+    }
+  }
+}

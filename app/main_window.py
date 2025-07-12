@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
                               QSplitter, QMenuBar, QStatusBar, QMessageBox,
                               QDialog, QLabel, QTextEdit, QPushButton,
                               QProgressDialog, QApplication)
-from PySide6.QtCore import Qt, QTimer, QThread, pyqtSignal
+from PySide6.QtCore import Qt, QTimer, QThread, Signal
 from PySide6.QtGui import QIcon, QPixmap, QFont, QAction
 import sys
 from pathlib import Path
@@ -25,8 +25,8 @@ logger = get_logger(__name__)
 class FeedUpdateThread(QThread):
     """Hilo para actualizar feeds RSS en background"""
     
-    progress_updated = pyqtSignal(int, str)
-    update_finished = pyqtSignal(bool, str)
+    progress_updated = Signal(int, str)
+    update_finished = Signal(bool, str)
     
     def __init__(self):
         super().__init__()

@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QListWidget,
                               QListWidgetItem, QLabel, QPushButton, QFrame,
                               QComboBox, QLineEdit, QTextEdit, QMessageBox,
                               QProgressBar, QMenu)
-from PySide6.QtCore import Qt, Signal, QThread, pyqtSignal, QTimer
+from PySide6.QtCore import Qt, Signal, QThread, QTimer
 from PySide6.QtGui import QPixmap, QIcon, QAction
 from typing import List, Dict, Any, Optional
 import os
@@ -172,8 +172,8 @@ class ContentItemWidget(QFrame):
 class ContentProcessorThread(QThread):
     """Hilo para procesar contenido en background"""
     
-    progress_updated = pyqtSignal(int, str)  # progress, message
-    processing_finished = pyqtSignal(int, bool, str)  # item_id, success, message
+    progress_updated = Signal(int, str)  # progress, message
+    processing_finished = Signal(int, bool, str)  # item_id, success, message
     
     def __init__(self, content_item: ContentItem):
         super().__init__()

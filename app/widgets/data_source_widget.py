@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QListWidget,
                               QListWidgetItem, QLabel, QPushButton, QFrame,
                               QDialog, QFormLayout, QLineEdit, QComboBox,
                               QTextEdit, QMessageBox)
-from PySide6.QtCore import Qt, Signal, QThread, pyqtSignal
+from PySide6.QtCore import Qt, Signal, QThread
 from PySide6.QtGui import QPixmap, QIcon
 import requests
 from pathlib import Path
