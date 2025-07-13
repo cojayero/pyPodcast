@@ -245,3 +245,122 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error obteniendo conteo de items: {e}")
             return 0
+
+    def get_source_deletion_info(self, source_id: int) -> Dict[str, Any]:
+        """Obtiene información detallada sobre lo que se eliminará al borrar una fuente"""
+        try:
+            with self.get_connection() as conn:
+                # Información de la fuente
+                source_cursor = conn.execute(
+                    "SELECT name, type, url FROM data_sources WHERE id = ?",
+                    (source_id,)
+                )
+                source_row = source_cursor.fetchone()
+                
+                if not source_row:
+                    return None
+                
+                # Contar items de contenido
+                items_cursor = conn.execute(
+                    "SELECT COUNT(*) FROM content_items WHERE source_id = ?",
+                    (source_id,)
+                )
+                total_items = items_cursor.fetchone()[0]
+                
+                # Contar archivos de audio existentes
+                audio_cursor = conn.execute(
+                    "SELECT COUNT(*) FROM content_items WHERE source_id = ? AND audio_file IS NOT NULL AND audio_file != ''",
+                    (source_id,)
+                )
+                audio_files = audio_cursor.fetchone()[0]
+                
+                # Obtener lista de archivos de audio para eliminación física
+                audio_files_cursor = conn.execute(
+                    "SELECT audio_file FROM content_items WHERE source_id = ? AND audio_file IS NOT NULL AND audio_file != ''",
+                    (source_id,)
+                )
+                audio_file_paths = [row[0] for row in audio_files_cursor.fetchall()]
+                
+                # Contar logs de procesamiento
+                logs_cursor = conn.execute(
+                    """SELECT COUNT(*) FROM processing_logs pl 
+                       JOIN content_items ci ON pl.item_id = ci.id 
+                       WHERE ci.source_id = ?""",
+                    (source_id,)
+                )
+                processing_logs = logs_cursor.fetchone()[0]
+                
+                return {
+                    'source_name': source_row[0],
+                    'source_type': source_row[1],
+                    'source_url': source_row[2],
+                    'total_items': total_items,
+                    'audio_files_count': audio_files,
+                    'audio_file_paths': audio_file_paths,
+                    'processing_logs': processing_logs
+                }
+                
+        except Exception as e:
+            logger.error(f"Error obteniendo información de eliminación: {e}")
+            return None
+
+    def delete_data_source_and_content(self, source_id: int) -> bool:
+        """Elimina una fuente de datos y todo su contenido asociado"""
+        try:
+            with self.get_connection() as conn:
+                # Verificar que la fuente existe
+                cursor = conn.execute("SELECT id FROM data_sources WHERE id = ?", (source_id,))
+                if not cursor.fetchone():
+                    logger.warning(f"Fuente de datos no encontrada: {source_id}")
+                    return False
+                
+                # Eliminar logs de procesamiento primero (por foreign key)
+                conn.execute("""
+                    DELETE FROM processing_logs 
+                    WHERE item_id IN (
+                        SELECT id FROM content_items WHERE source_id = ?
+                    )
+                """, (source_id,))
+                
+                # Eliminar items de contenido
+                conn.execute("DELETE FROM content_items WHERE source_id = ?", (source_id,))
+                
+                # Eliminar la fuente de datos
+                conn.execute("DELETE FROM data_sources WHERE id = ?", (source_id,))
+                
+                conn.commit()
+                logger.info(f"Fuente de datos {source_id} y todo su contenido eliminado exitosamente")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error eliminando fuente de datos {source_id}: {e}")
+            return False
+
+    def update_content_item_text(self, item_id: int, content: str = None, summary: str = None):
+        """Actualiza el contenido de texto de un item"""
+        try:
+            with self.get_connection() as conn:
+                updates = []
+                params = []
+                
+                if content is not None:
+                    updates.append("content = ?")
+                    params.append(content)
+                
+                if summary is not None:
+                    updates.append("summary = ?")
+                    params.append(summary)
+                
+                if updates:
+                    updates.append("updated_at = CURRENT_TIMESTAMP")
+                    params.append(item_id)
+                    
+                    query = f"UPDATE content_items SET {', '.join(updates)} WHERE id = ?"
+                    conn.execute(query, params)
+                    conn.commit()
+        except Exception as e:
+            logger.error(f"Error actualizando texto del item: {e}")
+            raise
+
+# Instancia global del gestor de base de datos
+db_manager = DatabaseManager()

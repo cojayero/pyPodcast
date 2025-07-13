@@ -158,6 +158,11 @@ class ContentItemWidget(QFrame):
         edit_action.triggered.connect(lambda: self.action_requested.emit(self.content_item.id, 'edit_content'))
         menu.addAction(edit_action)
         
+        # Analizar contenido - siempre disponible
+        analyze_action = QAction("📊 Analizar y Resumir", self)
+        analyze_action.triggered.connect(lambda: self.action_requested.emit(self.content_item.id, 'analyze_content'))
+        menu.addAction(analyze_action)
+        
         menu.addSeparator()
         
         # Acciones según el estado
@@ -450,6 +455,8 @@ class ContentListWidget(QWidget):
                 self.play_item(item_id)
             elif action == 'edit_content':
                 self.edit_item_content(item_id)
+            elif action == 'analyze_content':
+                self.analyze_item_content(item_id)
             elif action.startswith('status_'):
                 new_status = action.replace('status_', '')
                 self.change_item_status(item_id, new_status)
@@ -515,6 +522,32 @@ class ContentListWidget(QWidget):
         from app.dialogs.content_edit_dialog import ContentEditDialog
         
         dialog = ContentEditDialog(item, self)
+        dialog.content_updated.connect(self.on_content_updated)
+        dialog.exec()
+    
+    def analyze_item_content(self, item_id: int):
+        """Abre el diálogo de análisis de contenido"""
+        # Buscar el item
+        item = None
+        for content_item in self.content_items:
+            if content_item.id == item_id:
+                item = content_item
+                break
+        
+        if not item:
+            QMessageBox.warning(self, "Error", "Item no encontrado")
+            return
+        
+        # Verificar que hay contenido para analizar
+        if not (item.content or item.summary or item.description):
+            QMessageBox.warning(self, "Sin Contenido", 
+                              "Este item no tiene contenido disponible para analizar")
+            return
+        
+        # Abrir diálogo de análisis
+        from app.dialogs.content_analysis_dialog import ContentAnalysisDialog
+        
+        dialog = ContentAnalysisDialog(item, self)
         dialog.content_updated.connect(self.on_content_updated)
         dialog.exec()
     

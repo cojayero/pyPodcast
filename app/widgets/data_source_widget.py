@@ -16,6 +16,8 @@ from models.database import DatabaseManager
 from models.data_source import DataSource
 from services.rss_manager import RSSManager
 from utils.logger import get_logger
+from utils.file_manager import FileManager
+from app.dialogs.delete_confirmation_dialog import DeleteConfirmationDialog
 
 logger = get_logger(__name__)
 
@@ -357,19 +359,92 @@ class DataSourceWidget(QWidget):
                 QMessageBox.critical(self, "Error", f"Error añadiendo fuente: {str(e)}")
     
     def remove_selected_source(self):
-        """Elimina la fuente seleccionada"""
+        """Elimina la fuente seleccionada y todo su contenido asociado"""
         current_row = self.sources_list.currentRow()
         if current_row >= 0 and current_row < len(self.data_sources):
             source = self.data_sources[current_row]
             
-            reply = QMessageBox.question(self, "Confirmar",
-                f"¿Está seguro de eliminar '{source.display_name}'?",
-                QMessageBox.Yes | QMessageBox.No)
+            try:
+                # Obtener información detallada sobre lo que se eliminará
+                deletion_info = self.db_manager.get_source_deletion_info(source.id)
+                
+                if not deletion_info:
+                    QMessageBox.warning(self, "Error", "No se pudo obtener información de la fuente")
+                    return
+                
+                # Mostrar diálogo de confirmación avanzada
+                dialog = DeleteConfirmationDialog(deletion_info, self)
+                
+                if dialog.exec() == QDialog.Accepted:
+                    # Proceder con la eliminación
+                    success = self._perform_deletion(source.id, deletion_info)
+                    
+                    if success:
+                        # Mostrar reporte de eliminación
+                        self._show_deletion_report(deletion_info)
+                        # Recargar la lista
+                        self.load_data_sources()
+                    else:
+                        QMessageBox.critical(self, "Error", 
+                            "Error durante la eliminación. Consulte los logs para más detalles.")
+                
+            except Exception as e:
+                logger.error(f"Error en eliminación de fuente: {e}")
+                QMessageBox.critical(self, "Error", f"Error inesperado: {str(e)}")
+    
+    def _perform_deletion(self, source_id: int, deletion_info: Dict[str, Any]) -> bool:
+        """Realiza la eliminación completa de la fuente y sus archivos"""
+        try:
+            # 1. Eliminar archivos de audio físicos
+            audio_deletion_results = None
+            if deletion_info['audio_file_paths']:
+                audio_deletion_results = FileManager.delete_audio_files(
+                    deletion_info['audio_file_paths']
+                )
+                logger.info(f"Eliminación de archivos de audio: {audio_deletion_results}")
             
-            if reply == QMessageBox.Yes:
-                # TODO: Implementar eliminación en base de datos
-                logger.info(f"Eliminando fuente: {source.display_name}")
-                self.load_data_sources()
+            # 2. Eliminar registros de base de datos
+            db_success = self.db_manager.delete_data_source_and_content(source_id)
+            
+            if not db_success:
+                logger.error("Error eliminando registros de base de datos")
+                return False
+            
+            # 3. Limpiar directorios vacíos
+            audio_dir = FileManager.get_audio_directory()
+            deleted_dirs = FileManager.clean_empty_directories(audio_dir)
+            if deleted_dirs > 0:
+                logger.info(f"Se eliminaron {deleted_dirs} directorios vacíos")
+            
+            logger.info(f"Eliminación completa exitosa para fuente {source_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error durante eliminación completa: {e}")
+            return False
+    
+    def _show_deletion_report(self, deletion_info: Dict[str, Any]):
+        """Muestra un reporte de lo que se eliminó"""
+        total_items = deletion_info['total_items']
+        audio_files = deletion_info['audio_files_count']
+        logs = deletion_info['processing_logs']
+        
+        report = f"""Eliminación completada exitosamente:
+
+📝 Fuente: {deletion_info['source_name']}
+📄 Items de contenido eliminados: {total_items}
+🎵 Archivos de audio eliminados: {audio_files}
+📊 Registros de procesamiento eliminados: {logs}
+
+La fuente y todo su contenido asociado han sido eliminados permanentemente."""
+        
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("Eliminación Completada")
+        msg_box.setIcon(QMessageBox.Information)
+        msg_box.setText("✅ Eliminación completada exitosamente")
+        msg_box.setDetailedText(report)
+        msg_box.setStandardButtons(QMessageBox.Ok)
+        msg_box.exec()
     
     def refresh_sources(self):
         """Actualiza las fuentes de datos"""

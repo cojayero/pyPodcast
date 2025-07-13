@@ -50,7 +50,14 @@ class ConfigManager:
                 "max_summary_length": 500,
                 "summary_language": "es",
                 "auto_process": False,
-                "skip_processed": True
+                "skip_processed": True,
+                "use_apple_intelligence": True
+            },
+            "apple_intelligence": {
+                "base_url": "http://127.0.0.1:11535/v1",
+                "max_tokens": 500,
+                "temperature": 0.7,
+                "enabled": True
             }
         }
     

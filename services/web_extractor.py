@@ -291,7 +291,31 @@ class WebExtractor:
             return False
     
     def get_content_summary(self, content: str) -> str:
-        """Genera un resumen básico del contenido"""
+        """Genera un resumen inteligente del contenido usando el analizador"""
+        if not content:
+            return ""
+        
+        try:
+            # Usar el analizador de contenido inteligente
+            from services.content_analyzer import ContentAnalyzer
+            
+            analyzer = ContentAnalyzer()
+            analysis_result = analyzer.analyze_content(content)
+            summary = analysis_result.get('summary', '')
+            
+            if summary:
+                logger.info("Resumen generado usando analizador inteligente")
+                return summary
+            else:
+                logger.warning("Analizador inteligente no generó resumen, usando método simple")
+                return self._simple_summary_fallback(content)
+                
+        except Exception as e:
+            logger.error(f"Error usando analizador inteligente: {e}")
+            return self._simple_summary_fallback(content)
+    
+    def _simple_summary_fallback(self, content: str) -> str:
+        """Método de resumen simple como fallback"""
         if not content:
             return ""
         
