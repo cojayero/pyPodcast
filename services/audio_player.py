@@ -244,8 +244,8 @@ class AudioPlayer:
             time.sleep(0.1)  # Actualizar cada 100ms
     
     def get_supported_formats(self) -> list:
-        """Obtiene los formatos de audio soportados"""
-        return ['.mp3', '.wav', '.ogg', '.aiff', '.m4a']
+        """Obtiene los formatos de audio soportados por pygame"""
+        return ['.wav', '.ogg']  # Formatos realmente soportados por pygame
     
     def cleanup(self):
         """Limpia recursos del reproductor"""

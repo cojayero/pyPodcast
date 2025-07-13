@@ -17,9 +17,10 @@ class TextToSpeechService:
     
     def __init__(self):
         self.voice = config_manager.get('audio.voice', 'Jorge')  # Voz en español
-        self.rate = config_manager.get('audio.rate', 200)  # Palabras por minuto
+        self.rate = config_manager.get('audio.rate', 150)  # Palabras por minuto (más lento)
         self.output_dir = Path(config_manager.get('audio.output_dir', 'podcasts'))
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.format = config_manager.get('audio.format', 'mp3')  # Formato de salida
     
     def get_available_voices(self) -> List[Dict[str, str]]:
         """Obtiene las voces disponibles en el sistema"""
@@ -72,7 +73,7 @@ class TextToSpeechService:
             return ['Jorge']  # Fallback
     
     def text_to_speech(self, text: str, filename: str, title: str = None) -> str:
-        """Convierte texto a archivo de audio MP3"""
+        """Convierte texto a archivo de audio WAV (compatible con pygame)"""
         if not text or not text.strip():
             raise ValueError("El texto no puede estar vacío")
         
@@ -80,22 +81,22 @@ class TextToSpeechService:
             # Limpiar el texto para TTS
             clean_text = self._prepare_text_for_tts(text)
             
-            # Generar nombre de archivo
-            if not filename.endswith('.aiff'):
-                filename = filename.replace('.mp3', '.aiff')
+            # Generar nombres de archivo (temporal AIFF y final WAV)
+            base_filename = filename.replace('.mp3', '').replace('.aiff', '').replace('.m4a', '').replace('.wav', '')
+            temp_aiff_path = self.output_dir / f"{base_filename}_temp.aiff"
+            final_wav_path = self.output_dir / f"{base_filename}.wav"  # Usar WAV para compatibilidad con pygame
             
-            output_path = self.output_dir / filename
-            
-            # Comando say de macOS
+            # Comando say de macOS para generar AIFF temporal
             cmd = [
                 'say',
                 '-v', self.voice,
                 '-r', str(self.rate),
-                '-o', str(output_path),
+                '-o', str(temp_aiff_path),
                 clean_text
             ]
             
             logger.info(f"Generando audio con voz {self.voice} a {self.rate} wpm")
+            logger.info(f"Archivo de salida: {final_wav_path}")
             
             # Ejecutar comando
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
@@ -103,16 +104,23 @@ class TextToSpeechService:
             if result.returncode != 0:
                 raise RuntimeError(f"Error en síntesis de voz: {result.stderr}")
             
-            # Convertir AIFF a MP3 si es necesario
-            mp3_path = str(output_path).replace('.aiff', '.mp3')
-            if self._convert_to_mp3(str(output_path), mp3_path):
+            # Verificar que se creó el archivo temporal
+            if not temp_aiff_path.exists():
+                raise RuntimeError("No se pudo generar el archivo de audio temporal")
+            
+            # Convertir a WAV para compatibilidad con pygame
+            if self._convert_to_wav(str(temp_aiff_path), str(final_wav_path)):
                 # Eliminar archivo AIFF temporal
-                if output_path.exists():
-                    output_path.unlink()
-                return mp3_path
+                if temp_aiff_path.exists():
+                    temp_aiff_path.unlink()
+                logger.info(f"Audio WAV generado exitosamente: {final_wav_path}")
+                return str(final_wav_path)
             else:
-                # Si la conversión falla, devolver el AIFF
-                return str(output_path)
+                # Si la conversión falla, usar el AIFF como fallback
+                fallback_path = self.output_dir / f"{base_filename}.aiff"
+                temp_aiff_path.rename(fallback_path)
+                logger.warning(f"Conversión a WAV falló, usando AIFF: {fallback_path}")
+                return str(fallback_path)
             
         except subprocess.TimeoutExpired:
             logger.error("Timeout en síntesis de voz")
@@ -122,27 +130,57 @@ class TextToSpeechService:
             raise
     
     def _prepare_text_for_tts(self, text: str) -> str:
-        """Prepara el texto para síntesis de voz"""
-        # Limpiar caracteres problemáticos
+        """Prepara el texto para síntesis de voz más natural"""
         import re
         
-        # Reemplazar abreviaciones comunes
-        text = re.sub(r'\bDr\.', 'Doctor', text)
-        text = re.sub(r'\bSr\.', 'Señor', text)
-        text = re.sub(r'\bSra\.', 'Señora', text)
-        text = re.sub(r'\betc\.', 'etcétera', text)
+        # Reemplazar abreviaciones comunes para mejor pronunciación
+        replacements = {
+            r'\bDr\.': 'Doctor',
+            r'\bSr\.': 'Señor',
+            r'\bSra\.': 'Señora',
+            r'\bSrta\.': 'Señorita',
+            r'\betc\.': 'etcétera',
+            r'\bvs\.': 'versus',
+            r'\bp\.ej\.': 'por ejemplo',
+            r'\bi\.e\.': 'es decir',
+            r'\be\.g\.': 'por ejemplo',
+            r'\bURL': 'U R L',
+            r'\bHTTP': 'H T T P',
+            r'\bAPI': 'A P I',
+            r'\bYouTube': 'YouTube',
+            r'\bRSS': 'R S S',
+            # Números ordinales
+            r'\b1º': 'primero',
+            r'\b2º': 'segundo',
+            r'\b3º': 'tercero',
+            r'\b1ª': 'primera',
+            r'\b2ª': 'segunda',
+            r'\b3ª': 'tercera',
+        }
+        
+        for pattern, replacement in replacements.items():
+            text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
         
         # Limpiar caracteres especiales que pueden causar problemas
-        text = re.sub(r'[^\w\s\.\,\;\:\!\?\-\(\)áéíóúñÁÉÍÓÚÑ]', ' ', text)
+        text = re.sub(r'[^\w\s\.\,\;\:\!\?\-\(\)áéíóúñÁÉÍÓÚÑüÜ]', ' ', text)
         
-        # Normalizar espacios
+        # Normalizar espacios múltiples
         text = re.sub(r'\s+', ' ', text)
         
-        # Añadir pausas naturales
-        text = text.replace('.', '. ')
-        text = text.replace(',', ', ')
-        text = text.replace(';', '; ')
-        text = text.replace(':', ': ')
+        # Añadir pausas más naturales
+        text = text.replace('.', '. [[slnc 500]]')  # Pausa de 500ms después de punto
+        text = text.replace(',', ', [[slnc 200]]')  # Pausa de 200ms después de coma
+        text = text.replace(';', '; [[slnc 300]]')  # Pausa de 300ms después de punto y coma
+        text = text.replace(':', ': [[slnc 250]]')  # Pausa de 250ms después de dos puntos
+        text = text.replace('!', '! [[slnc 400]]')  # Pausa después de exclamación
+        text = text.replace('?', '? [[slnc 400]]')  # Pausa después de interrogación
+        
+        # Mejorar pronunciación de URLs y elementos técnicos
+        text = re.sub(r'https?://', 'h t t p ', text)
+        text = re.sub(r'www\.', 'doble doble doble punto ', text)
+        text = re.sub(r'\.com', ' punto com', text)
+        text = re.sub(r'\.org', ' punto org', text)
+        text = re.sub(r'\.net', ' punto net', text)
         
         # Limitar longitud (say tiene límites)
         max_length = 15000  # Límite seguro para say
@@ -152,45 +190,156 @@ class TextToSpeechService:
             last_period = text.rfind('.')
             if last_period > max_length * 0.8:
                 text = text[:last_period + 1]
+            text += " [[slnc 1000]] El texto ha sido truncado."
         
         return text.strip()
     
-    def _convert_to_mp3(self, input_path: str, output_path: str) -> bool:
-        """Convierte archivo AIFF a MP3 usando ffmpeg si está disponible"""
+    def _convert_to_wav(self, input_path: str, output_path: str) -> bool:
+        """Convierte archivo AIFF a WAV usando afconvert (nativo en macOS)"""
         try:
-            # Verificar si ffmpeg está disponible
-            subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
-            
-            # Convertir a MP3
+            # Método 1: Usar afconvert para generar WAV PCM (máxima compatibilidad)
             cmd = [
-                'ffmpeg',
-                '-i', input_path,
-                '-acodec', 'mp3',
-                '-ab', '128k',
-                '-y',  # Sobrescribir si existe
+                'afconvert',
+                '-f', 'WAVE',           # Formato WAVE
+                '-d', 'LEI16@44100',    # PCM 16-bit Little Endian, 44.1kHz
+                input_path,
                 output_path
             ]
             
             result = subprocess.run(cmd, capture_output=True, text=True)
-            return result.returncode == 0
+            if result.returncode == 0:
+                logger.info(f"Conversión exitosa a WAV: {output_path}")
+                return True
+            else:
+                logger.warning(f"afconvert WAV falló: {result.stderr}")
+                
+        except Exception as e:
+            logger.warning(f"afconvert WAV falló: {e}")
+        
+        # Método 2: Usar ffmpeg si está disponible
+        try:
+            subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
             
+            cmd = [
+                'ffmpeg',
+                '-i', input_path,
+                '-acodec', 'pcm_s16le',  # PCM 16-bit
+                '-ar', '44100',          # Sample rate 44.1 kHz
+                '-ac', '2',              # Stereo
+                '-y',                    # Sobrescribir si existe
+                output_path
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                logger.info("Conversión exitosa a WAV con ffmpeg")
+                return True
+                
         except (subprocess.CalledProcessError, FileNotFoundError):
-            # ffmpeg no disponible, intentar con afconvert (nativo de macOS)
+            logger.debug("ffmpeg no disponible")
+        
+        return False
+
+    def _convert_to_mp3(self, input_path: str, output_path: str) -> bool:
+        """Convierte archivo AIFF a M4A/AAC usando herramientas nativas de macOS"""
+        try:
+            # Método 1: Usar afconvert para AAC (la opción más compatible)
             try:
+                # Crear archivo M4A con codec AAC
+                m4a_path = output_path.replace('.mp3', '.m4a')
                 cmd = [
                     'afconvert',
-                    '-f', 'mp4f',
-                    '-d', 'aac',
+                    '-f', 'm4af',       # Formato Apple M4A
+                    '-d', 'aac',        # Codec AAC
+                    '-q', '127',        # Calidad máxima
                     input_path,
-                    output_path.replace('.mp3', '.m4a')
+                    m4a_path
                 ]
                 
                 result = subprocess.run(cmd, capture_output=True, text=True)
-                return result.returncode == 0
-                
+                if result.returncode == 0:
+                    logger.info(f"Conversión exitosa a M4A/AAC: {m4a_path}")
+                    return True
+                else:
+                    logger.warning(f"afconvert M4A falló: {result.stderr}")
+                    
             except Exception as e:
-                logger.warning(f"No se pudo convertir a MP3: {e}")
-                return False
+                logger.warning(f"afconvert M4A falló: {e}")
+            
+            # Método 2: Usar afconvert para ALAC (sin pérdida)
+            try:
+                alac_path = output_path.replace('.mp3', '_lossless.m4a')
+                cmd = [
+                    'afconvert',
+                    '-f', 'm4af',       # Formato Apple M4A
+                    '-d', 'alac',       # Codec ALAC (sin pérdida)
+                    input_path,
+                    alac_path
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    logger.info(f"Conversión exitosa a ALAC: {alac_path}")
+                    # Renombrar para que sea el archivo principal
+                    final_path = output_path.replace('.mp3', '.m4a')
+                    Path(alac_path).rename(final_path)
+                    return True
+                else:
+                    logger.warning(f"afconvert ALAC falló: {result.stderr}")
+                    
+            except Exception as e:
+                logger.warning(f"afconvert ALAC falló: {e}")
+            
+            # Método 3: Intentar con lame si está disponible
+            try:
+                subprocess.run(['lame', '--version'], capture_output=True, check=True)
+                
+                cmd = [
+                    'lame',
+                    '-b', '128',        # Bitrate 128 kbps
+                    '-q', '2',          # Calidad alta
+                    '--quiet',          # Modo silencioso
+                    input_path,
+                    output_path
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    logger.info("Conversión a MP3 exitosa con lame")
+                    return True
+                    
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                logger.debug("lame no disponible")
+            
+            # Método 4: Usar ffmpeg con codec AAC si está disponible
+            try:
+                subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+                
+                # Intentar con codec AAC incorporado
+                m4a_path = output_path.replace('.mp3', '.m4a')
+                cmd = [
+                    'ffmpeg',
+                    '-i', input_path,
+                    '-c:a', 'aac',      # Usar codec AAC nativo
+                    '-b:a', '128k',     # Bitrate 128 kbps
+                    '-ar', '44100',     # Sample rate 44.1 kHz
+                    '-y',               # Sobrescribir si existe
+                    m4a_path
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    logger.info("Conversión exitosa con ffmpeg AAC")
+                    return True
+                    
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                logger.debug("ffmpeg no disponible o sin codec apropiado")
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error en conversión de audio: {e}")
+            return False
     
     def create_podcast_with_intro(self, text: str, title: str, author: str = None) -> str:
         """Crea un podcast completo con introducción"""
@@ -252,3 +401,20 @@ class TextToSpeechService:
         except Exception as e:
             logger.error(f"Error en prueba de síntesis: {e}")
             return False
+    
+    def set_speech_rate(self, rate: int):
+        """Establece la velocidad de habla en palabras por minuto"""
+        if 100 <= rate <= 300:
+            self.rate = rate
+            logger.info(f"Velocidad de habla establecida a {rate} wpm")
+        else:
+            logger.warning(f"Velocidad inválida {rate}, debe estar entre 100-300 wpm")
+    
+    def set_voice(self, voice_name: str):
+        """Establece la voz a usar"""
+        available_voices = [v['name'] for v in self.get_available_voices()]
+        if voice_name in available_voices:
+            self.voice = voice_name
+            logger.info(f"Voz establecida a {voice_name}")
+        else:
+            logger.warning(f"Voz {voice_name} no disponible. Usando {self.voice}")

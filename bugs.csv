@@ -4,3 +4,5 @@ BUG-002,2025-07-12,Audio,Posible delay en síntesis de voz,Abierto,Baja,Optimiza
 BUG-003,2025-07-12,Network,Timeout en feeds RSS lentos,Abierto,Media,Implementar timeout configurable
 BUG-004,2025-07-12,DB,Posibles locks en SQLite concurrente,Abierto,Alta,Implementar connection pooling
 BUG-005,2025-07-12,YouTube,Algunos videos sin transcripción,Abierto,Media,Fallback a whisper local
+BUG-006,2025-07-13,Audio,Archivos de audio no se reproducen en player embebido,Resuelto,Alta,Pygame no soporta M4A/AIFF - Solucionado convirtiendo TTS a WAV
+FEAT-001,2025-07-13,Feature,Editor de contenido para personalizar texto de audio,Implementado,Alta,Diálogo con preview - acceso por doble-clic y menú contextual

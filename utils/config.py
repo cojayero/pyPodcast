@@ -29,10 +29,10 @@ class ConfigManager:
             },
             "audio": {
                 "output_dir": "podcasts",
-                "format": "mp3",
-                "quality": "medium",
+                "format": "wav",  # Cambiado a WAV para compatibilidad con pygame
+                "quality": "high",
                 "voice": "Jorge",  # Voz en español de macOS
-                "rate": 200  # Palabras por minuto
+                "rate": 150  # Palabras por minuto (velocidad más natural)
             },
             "network": {
                 "timeout": 30,

@@ -22,6 +22,7 @@ class ContentItemWidget(QFrame):
     """Widget para mostrar un item de contenido"""
     
     clicked = Signal(int)
+    double_clicked = Signal(int)
     action_requested = Signal(int, str)  # item_id, action
     
     def __init__(self, content_item: ContentItem):
@@ -142,9 +143,22 @@ class ContentItemWidget(QFrame):
             self.clicked.emit(self.content_item.id)
         super().mousePressEvent(event)
     
+    def mouseDoubleClickEvent(self, event):
+        """Maneja el doble click en el item"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.double_clicked.emit(self.content_item.id)
+        super().mouseDoubleClickEvent(event)
+    
     def contextMenuEvent(self, event):
         """Menú contextual"""
         menu = QMenu(self)
+        
+        # Editar contenido - siempre disponible
+        edit_action = QAction("✏️ Editar Contenido", self)
+        edit_action.triggered.connect(lambda: self.action_requested.emit(self.content_item.id, 'edit_content'))
+        menu.addAction(edit_action)
+        
+        menu.addSeparator()
         
         # Acciones según el estado
         if self.content_item.status == 'nuevo':
@@ -156,6 +170,8 @@ class ContentItemWidget(QFrame):
             play_action = QAction("Reproducir", self)
             play_action.triggered.connect(lambda: self.action_requested.emit(self.content_item.id, 'play'))
             menu.addAction(play_action)
+        
+        menu.addSeparator()
         
         # Cambiar estado
         status_menu = menu.addMenu("Cambiar estado")
@@ -413,6 +429,7 @@ class ContentListWidget(QWidget):
         for item in filtered_items:
             item_widget = ContentItemWidget(item)
             item_widget.clicked.connect(self.on_item_clicked)
+            item_widget.double_clicked.connect(self.edit_item_content)
             item_widget.action_requested.connect(self.handle_item_action)
             
             list_item = QListWidgetItem()
@@ -431,6 +448,8 @@ class ContentListWidget(QWidget):
                 self.process_item(item_id)
             elif action == 'play':
                 self.play_item(item_id)
+            elif action == 'edit_content':
+                self.edit_item_content(item_id)
             elif action.startswith('status_'):
                 new_status = action.replace('status_', '')
                 self.change_item_status(item_id, new_status)
@@ -478,6 +497,31 @@ class ContentListWidget(QWidget):
         """Reproduce un item"""
         # TODO: Implementar reproducción
         QMessageBox.information(self, "Info", "Funcionalidad de reproducción pendiente")
+    
+    def edit_item_content(self, item_id: int):
+        """Abre el diálogo de edición de contenido"""
+        # Buscar el item
+        item = None
+        for content_item in self.content_items:
+            if content_item.id == item_id:
+                item = content_item
+                break
+        
+        if not item:
+            QMessageBox.warning(self, "Error", "Item no encontrado")
+            return
+        
+        # Abrir diálogo de edición
+        from app.dialogs.content_edit_dialog import ContentEditDialog
+        
+        dialog = ContentEditDialog(item, self)
+        dialog.content_updated.connect(self.on_content_updated)
+        dialog.exec()
+    
+    def on_content_updated(self, item_id: int):
+        """Se ejecuta cuando se actualiza el contenido de un item"""
+        # Recargar la lista para reflejar cambios
+        self.load_content_items()
     
     def change_item_status(self, item_id: int, new_status: str):
         """Cambia el estado de un item"""

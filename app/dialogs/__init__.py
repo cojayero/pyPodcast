@@ -1,0 +1,3 @@
+"""
+Diálogos de la aplicación
+"""
